@@ -33,3 +33,7 @@ Also requires the Android SDK and NDK, with `NDK_HOME` set to the NDK directory.
 npx tauri android build --apk --target aarch64
 adb install -r src-tauri/gen/android/app/build/outputs/apk/universal/release/app-universal-release.apk
 ```
+
+## License
+
+[MIT](./LICENSE)

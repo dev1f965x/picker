@@ -33,3 +33,7 @@ npx tauri build
 npx tauri android build --apk --target aarch64
 adb install -r src-tauri/gen/android/app/build/outputs/apk/universal/release/app-universal-release.apk
 ```
+
+## 라이선스
+
+[MIT](./LICENSE)
