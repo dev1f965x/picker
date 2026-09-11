@@ -1,7 +1,10 @@
 {
   "name": "picker",
-  "private": true,
   "version": "1.0.0",
+  "description": "Random picker for when you can't decide",
+  "author": "dev1f965x",
+  "license": "MIT",
+  "private": true,
   "type": "module",
   "scripts": {
     "dev": "vite",
