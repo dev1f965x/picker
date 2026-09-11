@@ -53,13 +53,10 @@ h1 {
 .category-tab {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
   border: 1px solid #d4d4d8;
   border-radius: 999px;
   background: white;
   color: #18181b;
-  cursor: pointer;
 }
 
 .category-tab.active {
@@ -68,12 +65,20 @@ h1 {
   border-color: #18181b;
 }
 
-.remove-category {
+.category-tab button {
+  padding: 6px 4px 6px 12px;
+  border: none;
+  background: none;
   color: inherit;
+  cursor: pointer;
+}
+
+.category-tab .remove-category {
+  padding-inline: 4px 10px;
   opacity: 0.5;
 }
 
-.remove-category:hover {
+.category-tab .remove-category:hover {
   opacity: 1;
 }
 

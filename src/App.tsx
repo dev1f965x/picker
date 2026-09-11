@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import "./App.css";
 
 type Item = { id: string; name: string };
@@ -6,15 +6,16 @@ type Category = { id: string; name: string; items: Item[] };
 
 const STORAGE_KEY = "picker-categories";
 
-function uid() {
-  return Math.random().toString(36).slice(2, 10);
+function loadCategories(): Category[] {
+  try {
+    return JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "[]") as Category[];
+  } catch {
+    return [];
+  }
 }
 
 function App() {
-  const [categories, setCategories] = useState<Category[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    return saved ? JSON.parse(saved) : [];
-  });
+  const [categories, setCategories] = useState(loadCategories);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [categoryInput, setCategoryInput] = useState("");
   const [itemInput, setItemInput] = useState("");
@@ -26,105 +27,108 @@ function App() {
 
   const selected = categories.find((c) => c.id === selectedId) ?? null;
 
-  function addCategory() {
+  function select(id: string | null) {
+    setSelectedId(id);
+    setPicked(null);
+  }
+
+  function updateItems(update: (items: Item[]) => Item[]) {
+    if (!selected) return;
+    setCategories((prev) =>
+      prev.map((c) => (c.id === selected.id ? { ...c, items: update(c.items) } : c)),
+    );
+  }
+
+  // Submitting through a form, rather than listening for Enter, keeps Korean IME
+  // composition from adding the last syllable a second time.
+  function addCategory(event: FormEvent) {
+    event.preventDefault();
     const name = categoryInput.trim();
     if (!name) return;
-    const category: Category = { id: uid(), name, items: [] };
+    const category: Category = { id: crypto.randomUUID(), name, items: [] };
     setCategories((prev) => [...prev, category]);
     setCategoryInput("");
-    setSelectedId(category.id);
+    select(category.id);
   }
 
-  function removeCategory(id: string) {
-    setCategories((prev) => prev.filter((c) => c.id !== id));
-    if (selectedId === id) {
-      setSelectedId(null);
-      setPicked(null);
+  function removeCategory(category: Category) {
+    const count = category.items.length;
+    if (count > 0 && !window.confirm(`"${category.name}"와 항목 ${count}개를 삭제할까요?`)) {
+      return;
     }
+    setCategories((prev) => prev.filter((c) => c.id !== category.id));
+    if (selectedId === category.id) select(null);
   }
 
-  function addItem() {
+  function addItem(event: FormEvent) {
+    event.preventDefault();
     const name = itemInput.trim();
-    if (!name || !selected) return;
-    const targetId = selected.id;
-    setCategories((prev) =>
-      prev.map((c) => (c.id === targetId ? { ...c, items: [...c.items, { id: uid(), name }] } : c)),
-    );
+    if (!name) return;
+    updateItems((items) => [...items, { id: crypto.randomUUID(), name }]);
     setItemInput("");
   }
 
-  function removeItem(itemId: string) {
-    if (!selected) return;
-    const targetId = selected.id;
-    setCategories((prev) =>
-      prev.map((c) => (c.id === targetId ? { ...c, items: c.items.filter((i) => i.id !== itemId) } : c)),
-    );
-  }
-
   function pick() {
-    if (!selected || selected.items.length === 0) return;
+    if (!selected?.items.length) return;
     const index = Math.floor(Math.random() * selected.items.length);
     setPicked(selected.items[index].name);
   }
 
   return (
-    <div className="container">
+    <main className="container">
       <h1>뭐 할지 고르기</h1>
 
-      <div className="add-row">
+      <form className="add-row" onSubmit={addCategory}>
         <input
           type="text"
           value={categoryInput}
           onChange={(e) => setCategoryInput(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && addCategory()}
           placeholder="카테고리 이름 (예: 게임, 음식)"
         />
-        <button onClick={addCategory}>카테고리 추가</button>
-      </div>
+        <button type="submit">카테고리 추가</button>
+      </form>
 
       <div className="category-tabs">
         {categories.map((c) => (
-          <button
-            key={c.id}
-            className={`category-tab ${c.id === selectedId ? "active" : ""}`}
-            onClick={() => {
-              setSelectedId(c.id);
-              setPicked(null);
-            }}
-          >
-            {c.name}
-            <span
+          <div key={c.id} className={`category-tab${c.id === selectedId ? " active" : ""}`}>
+            <button type="button" onClick={() => select(c.id)}>
+              {c.name}
+            </button>
+            <button
+              type="button"
               className="remove-category"
-              onClick={(e) => {
-                e.stopPropagation();
-                removeCategory(c.id);
-              }}
+              aria-label={`${c.name} 삭제`}
+              onClick={() => removeCategory(c)}
             >
               ✕
-            </span>
-          </button>
+            </button>
+          </div>
         ))}
         {categories.length === 0 && <p className="empty-hint">카테고리를 먼저 만들어주세요.</p>}
       </div>
 
       {selected && (
         <>
-          <div className="add-row">
+          <form className="add-row" onSubmit={addItem}>
             <input
               type="text"
               value={itemInput}
               onChange={(e) => setItemInput(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && addItem()}
               placeholder={`${selected.name} 항목 입력`}
             />
-            <button onClick={addItem}>추가</button>
-          </div>
+            <button type="submit">추가</button>
+          </form>
 
           <ul className="item-list">
             {selected.items.map((item) => (
               <li key={item.id}>
                 <span>{item.name}</span>
-                <button className="remove" onClick={() => removeItem(item.id)}>
+                <button
+                  type="button"
+                  className="remove"
+                  aria-label={`${item.name} 삭제`}
+                  onClick={() => updateItems((items) => items.filter((i) => i.id !== item.id))}
+                >
                   ✕
                 </button>
               </li>
@@ -132,20 +136,24 @@ function App() {
             {selected.items.length === 0 && <li className="empty">목록이 비어있습니다.</li>}
           </ul>
 
-          <button className="pick-button" onClick={pick} disabled={selected.items.length === 0}>
+          <button
+            type="button"
+            className="pick-button"
+            onClick={pick}
+            disabled={selected.items.length === 0}
+          >
             고르기
           </button>
 
           {picked && (
             <div className="result">
               <p>이거 하세요:</p>
-              {/* TODO: 게임/음식처럼 고정된 카테고리에 한해 도메인 특화 가중치 알고리즘 추가될 수도, 안 될 수도 있음 */}
               <strong>{picked}</strong>
             </div>
           )}
         </>
       )}
-    </div>
+    </main>
   );
 }
 
